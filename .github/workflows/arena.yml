@@ -36,7 +36,13 @@ jobs:
         run: |
           if [ -f bundle.enc ]; then openssl enc -d -aes-256-cbc -pbkdf2 -iter 100000 -in bundle.enc -out /tmp/bundle.zip -pass env:BUNDLE_KEY; else cp bundle.zip /tmp/bundle.zip; fi
           unzip -q /tmp/bundle.zip -d /tmp/b
-      - run: pip install -q uv && uv venv -q -p 3.14 /tmp/v && uv pip install -q -p /tmp/v/bin/python cambc==2.1.4
+      - name: install the engine (job.json "install" from harness/remote.py, else cambc 2.1.4)
+        run: |
+          cmd=$(python3 -c 'import json; print(json.load(open("/tmp/b/job.json")).get("install", ""))')
+          [ -n "$cmd" ] || cmd='pip install -q uv && uv venv -q -p 3.14 /tmp/v && uv pip install -q -p /tmp/v/bin/python cambc==2.1.4'
+          echo "$cmd"
+          bash -c "$cmd"
+          /tmp/v/bin/cambc --version
       - run: BC_SHARD='${{ matrix.shard }}/${{ inputs.shards }}' /tmp/v/bin/python /tmp/b/harness/remote_job.py /tmp/b/job.json out --cambc /tmp/v/bin/cambc
       - uses: actions/upload-artifact@v4
         with:
